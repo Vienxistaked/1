@@ -14,6 +14,7 @@ class NesineScraper:
         self.matches_data = []
         self.league_table_data = []
         self.competition_history_data = []
+        self.last_matches_data = []
 
     def setup_driver(self, headless=True):
         print("ChromeDriver yükleniyor (arka plan modu)...")
@@ -321,7 +322,9 @@ class NesineScraper:
             time.sleep(3)
             try:
                 wait = WebDriverWait(self.driver, 10)
-                history_button = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, '[data-test-id="MenuItem"][href*="rekabet-gecmisi"]')))
+                history_button = wait.until(EC.element_to_be_clickable(
+                    (By.CSS_SELECTOR, '[data-test-id="MenuItem"][href*="rekabet-gecmisi"]')
+                ))
                 self.driver.execute_script("arguments[0].click();", history_button)
                 print("✅ Rekabet geçmişi sekmesine tıklandı")
                 time.sleep(3)
@@ -329,82 +332,61 @@ class NesineScraper:
                 print(f"⚠️ Rekabet geçmişi sekmesi bulunamadı: {e}")
                 return False
             try:
-                history_items = wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, '[data-test-id="CompitionHistoryTableItem"]')))
+                history_items = self.driver.find_elements(By.CSS_SELECTOR, '[data-test-id="CompitionHistoryTableItem"]')
                 for item in history_items:
                     try:
-                        league_info = "-"
-                        season_info = "-"
+                        lig = "-"
+                        sezon = "-"
                         try:
-                            league_elem = item.find_element(By.CSS_SELECTOR, '[data-test-id="CompitionTableItemLeague"]')
-                            league_spans = league_elem.find_elements(By.TAG_NAME, "span")
-                            if len(league_spans) >= 2:
-                                league_info = f"{league_spans[0].text.strip()} {league_spans[1].text.strip()}"
-                            else:
-                                league_info = league_elem.text.strip()
+                            lig_sezon_elem = item.find_element(By.CSS_SELECTOR, '[data-test-id="CompitionTableItemLeague"]')
+                            spans = lig_sezon_elem.find_elements(By.TAG_NAME, "span")
+                            if len(spans) >= 2:
+                                lig = spans[0].text.strip()
+                                sezon = spans[1].text.strip()
+                            elif len(spans) == 1:
+                                lig = spans[0].text.strip()
                         except: pass
+                        tarih = "-"
                         try:
-                            date_elem = item.find_element(By.CSS_SELECTOR, '[data-test-id="CompitionTableItemSeason"]')
-                            season_info = date_elem.text.strip()
+                            tarih_elem = item.find_element(By.CSS_SELECTOR, '[data-test-id="CompitionTableItemSeason"]')
+                            tarih = tarih_elem.text.strip()
                         except: pass
-                        home_team = "-"
+                        ms = "-"
                         try:
-                            home_elem = item.find_element(By.CSS_SELECTOR, '[data-test-id="HomeTeam"] span')
-                            home_team = home_elem.text.strip()
+                            ms_elem = item.find_element(By.CSS_SELECTOR, '[data-test-id="NsnButton"] span')
+                            ms = ms_elem.text.strip()
                         except: pass
-                        away_team = "-"
+                        iy = "-"
                         try:
-                            away_elem = item.find_element(By.CSS_SELECTOR, '[data-test-id="AwayTeam"] span')
-                            away_team = away_elem.text.strip()
+                            iy_elem = item.find_element(By.CSS_SELECTOR, '[data-test-id="CompitionTableItemFirstHalf"]')
+                            iy = iy_elem.text.strip()
                         except: pass
-                        score = "-"
-                        try:
-                            score_elem = item.find_element(By.CSS_SELECTOR, '[data-test-id="NsnButton"] span')
-                            score = score_elem.text.strip()
-                        except: pass
-                        first_half = "-"
-                        try:
-                            first_half_elem = item.find_element(By.CSS_SELECTOR, '[data-test-id="CompitionTableItemFirstHalf"]')
-                            first_half = first_half_elem.text.strip()
-                        except: pass
-                        # Oranları iddia türlerine göre ayrıştır
-                        odds_str = "-"
+                        oranlar = ["-", "-", "-", "-", "-"]
                         try:
                             odds_elem = item.find_element(By.CSS_SELECTOR, '[data-test-id="CompitionTableItemOdds"]')
-                            odds_dict = {}
-                            try:
-                                ms_odds_elem = odds_elem.find_element(By.CSS_SELECTOR, '[data-test-id="MatchOdds"]')
-                                ms_spans = ms_odds_elem.find_elements(By.TAG_NAME, "span")
-                                if len(ms_spans) >= 6:
-                                    odds_dict["1"] = ms_spans[1].text.strip()
-                                    odds_dict["X"] = ms_spans[3].text.strip()
-                                    odds_dict["2"] = ms_spans[5].text.strip()
-                            except: pass
-                            try:
-                                au_odds_elem = odds_elem.find_element(By.CSS_SELECTOR, '[data-test-id="AltUstOdds"]')
-                                au_spans = au_odds_elem.find_elements(By.TAG_NAME, "span")
-                                if len(au_spans) >= 4:
-                                    odds_dict["Alt"] = au_spans[1].text.strip()
-                                    odds_dict["Üst"] = au_spans[3].text.strip()
-                            except: pass
-                            odds_str = ", ".join([
-                                f"1: {odds_dict.get('1','-')}",
-                                f"X: {odds_dict.get('X','-')}",
-                                f"2: {odds_dict.get('2','-')}",
-                                f"Alt: {odds_dict.get('Alt','-')}",
-                                f"Üst: {odds_dict.get('Üst','-')}"
-                            ])
+                            odds_spans = odds_elem.find_elements(By.CSS_SELECTOR, 'span[data-test-id="CompitionHistoryTableItem"]')
+                            for i, odd in enumerate(odds_spans[:5]):
+                                oranlar[i] = odd.text.strip()
+                            if not odds_spans:
+                                p_tags = odds_elem.find_elements(By.TAG_NAME, "p")
+                                if p_tags and "oranlarına erişilememektedir" in p_tags[0].text:
+                                    oranlar = ["-"]*5
                         except: pass
-                        if (home_team != "-" or away_team != "-") and score != "-":
+
+                        if lig != "-" and tarih != "-" and ms != "-":
                             history_data = {
                                 "Ana_Maç": teams,
                                 "Ana_Lig": league,
-                                "Geçmiş_Lig": league_info,
-                                "Tarih": season_info,
-                                "Ev_Sahibi": home_team,
-                                "Deplasman": away_team,
-                                "Skor": score,
-                                "İlk_Yarı": first_half,
-                                "İddaa_Oranları": odds_str
+                                "Lig": lig,
+                                "Sezon": sezon,
+                                "Tarih": tarih,
+                                "MS": ms,
+                                "İY": iy,
+                                "1": oranlar[0],
+                                "X": oranlar[1],
+                                "2": oranlar[2],
+                                "Alt": oranlar[3],
+                                "Üst": oranlar[4]
                             }
                             self.competition_history_data.append(history_data)
                     except Exception as e:
@@ -419,11 +401,102 @@ class NesineScraper:
             print(f"❌ Rekabet geçmişi sayfası hatası: {e}")
             return False
 
+    def scrape_last_matches(self, match_link, teams, league):
+        try:
+            print(f"🕑 Son Maçlar sekmesine gidiliyor: {match_link}")
+            self.driver.get(match_link)
+            time.sleep(3)
+            wait = WebDriverWait(self.driver, 10)
+            try:
+                last_matches_button = wait.until(
+                    EC.element_to_be_clickable(
+                        (By.CSS_SELECTOR, '[data-test-id="MenuItem"][href*="son-maclari"]')
+                    )
+                )
+                self.driver.execute_script("arguments[0].click();", last_matches_button)
+                print("✅ Son Maçlar sekmesine tıklandı")
+                time.sleep(3)
+            except Exception as e:
+                print(f"⚠️ Son Maçlar sekmesi bulunamadı: {e}")
+                return False
+
+            try:
+                last_matches_sections = self.driver.find_elements(By.CSS_SELECTOR, '[data-test-id^="LastMatchesTable"]')
+                if not last_matches_sections:
+                    print("⚠️ Son maçlar tablosu bulunamadı!")
+                    return False
+
+                for section in last_matches_sections:
+                    try:
+                        team_name = "-"
+                        try:
+                            team_link_elem = section.find_element(By.CSS_SELECTOR, '[data-test-id="TeamLink"] span')
+                            team_name = team_link_elem.text.strip()
+                        except: pass
+                        matches_table = section.find_element(By.CSS_SELECTOR, '[data-test-id="LastMatchesTable"] table tbody')
+                        match_rows = matches_table.find_elements(By.CSS_SELECTOR, '[data-test-id="LastMatchesTable"]')
+                        for row in match_rows:
+                            try:
+                                lig = "-"
+                                tarih = "-"
+                                try:
+                                    lig_span = row.find_element(By.CSS_SELECTOR, '[data-test-id="TableBodyLeague"] span.a0cdb4268c7ee710adc6')
+                                    lig = lig_span.text.strip()
+                                    date_spans = row.find_elements(By.CSS_SELECTOR, '[data-test-id="TableBodyLeague"] span')
+                                    if len(date_spans) > 1:
+                                        tarih = date_spans[1].text.strip()
+                                except: pass
+                                ms = "-"
+                                try:
+                                    ms_elem = row.find_element(By.CSS_SELECTOR, '[data-test-id="TableBodyMatch"] .nsn-btn span')
+                                    ms = ms_elem.text.strip()
+                                except: pass
+                                iy = "-"
+                                try:
+                                    iy_elem = row.find_element(By.CSS_SELECTOR, '[data-test-id="TableBodyFirstHalf"]')
+                                    iy = iy_elem.text.strip()
+                                except: pass
+                                ev_sahibi = "-"
+                                deplasman = "-"
+                                try:
+                                    ev_sahibi = row.find_element(By.CSS_SELECTOR, '[data-test-id="HomeTeam"] span').text.strip()
+                                except: pass
+                                try:
+                                    deplasman = row.find_element(By.CSS_SELECTOR, '[data-test-id="AwayTeam"] span').text.strip()
+                                except: pass
+
+                                last_match_data = {
+                                    "Ana_Maç": teams,
+                                    "Ana_Lig": league,
+                                    "Takım": team_name,
+                                    "Son_Lig": lig,
+                                    "Tarih": tarih,
+                                    "Ev_Sahibi": ev_sahibi,
+                                    "Deplasman": deplasman,
+                                    "MS": ms,
+                                    "İY": iy
+                                }
+                                self.last_matches_data.append(last_match_data)
+                            except Exception as e:
+                                print(f"⚠️ Son maç satırı ayrıştırılırken hata: {e}")
+                                continue
+                    except Exception as e:
+                        print(f"⚠️ Takım son maç tablosu ayrıştırılamadı: {e}")
+                        continue
+                print(f"✅ Son maçlar verisi çekildi: {len(self.last_matches_data)} satır")
+                return True
+            except Exception as e:
+                print(f"⚠️ Son maçlar verisi çekilemedi: {e}")
+                return False
+        except Exception as e:
+            print(f"❌ Son maçlar sayfası hatası: {e}")
+            return False
+
     def extract_statistics_data(self):
         print(f"\n📈 İstatistiksel veri çekme başlıyor...")
-        print(f"🎯 Hedef: {len(self.matches_data)} maçın puan tablosu ve rekabet geçmişi verisi")
-        success_count = 0
+        print(f"🎯 Hedef: {len(self.matches_data)} maçın puan tablosu, rekabet geçmişi ve son maçlar verisi")
         main_url = "https://www.nesine.com/iddaa?et=1&le=3&ocg=MS-2%2C5&gt=Pop%C3%BCler"
+        self.last_matches_data = []
         for i, match_data in enumerate(self.matches_data):
             try:
                 print(f"\n📊 Maç {i+1}/{len(self.matches_data)} istatistikleri çekiliyor...")
@@ -433,13 +506,9 @@ class NesineScraper:
                 if match_link == "-" or match_link == "":
                     print(f"⚠️ Maç {i+1} için link bulunamadı, atlanıyor...")
                     continue
-                table_success = self.scrape_league_table(match_link, teams, league)
-                history_success = self.scrape_competition_history(match_link, teams, league)
-                if table_success or history_success:
-                    success_count += 1
-                    print(f"✅ Maç {i+1} istatistikleri başarıyla çekildi")
-                else:
-                    print(f"❌ Maç {i+1} istatistikleri çekilemedi")
+                self.scrape_league_table(match_link, teams, league)
+                self.scrape_competition_history(match_link, teams, league)
+                self.scrape_last_matches(match_link, teams, league)
                 if i < len(self.matches_data) - 1:
                     print("🔄 Ana sayfaya dönülüyor...")
                     self.driver.get(main_url)
@@ -448,9 +517,9 @@ class NesineScraper:
                 print(f"❌ Maç {i+1} istatistik hatası: {e}")
                 continue
         print(f"\n📊 İstatistik çekme tamamlandı!")
-        print(f"✅ Başarılı: {success_count}/{len(self.matches_data)} maç")
         print(f"📈 Puan tablosu verisi: {len(self.league_table_data)} satır")
         print(f"🏆 Rekabet geçmişi verisi: {len(self.competition_history_data)} satır")
+        print(f"📅 Son maçlar verisi: {len(self.last_matches_data)} satır")
 
     def save_to_csv(self):
         if not self.matches_data:
@@ -528,7 +597,10 @@ class NesineScraper:
             print("❌ Kaydedilecek rekabet geçmişi verisi yok!")
             return False
         try:
+            columns = ["Ana_Maç", "Ana_Lig", "Lig", "Sezon", "Tarih", "MS", "İY", "1", "X", "2", "Alt", "Üst"]
             df = pd.DataFrame(self.competition_history_data)
+            if not df.empty:
+                df = df[columns]
             csv_paths = [
                 "Rekabet_gecmisi.csv",
                 os.path.join(os.path.expanduser("~"), "Desktop", "Rekabet_gecmisi.csv"),
@@ -538,10 +610,10 @@ class NesineScraper:
                 try:
                     df.to_csv(csv_path, index=False, encoding='utf-8-sig')
                     if os.path.exists(csv_path) and os.path.getsize(csv_path) > 0:
-                        print(f"✅ {len(self.competition_history_data)} rekabet geçmişi verisi '{csv_path}' dosyasına kaydedildi")
+                        print(f"✅ {len(df)} rekabet geçmişi verisi '{csv_path}' dosyasına kaydedildi")
                         print(f"📁 Dosya boyutu: {os.path.getsize(csv_path)} bytes")
                         print("\n📋 İlk 5 geçmiş maç (özet):")
-                        display_columns = ['Ana_Maç', 'Geçmiş_Lig', 'Tarih', 'Ev_Sahibi', 'Deplasman', 'Skor', 'İlk_Yarı']
+                        display_columns = ["Ana_Maç", "Lig", "Sezon", "Tarih", "MS", "İY", "1", "X", "2", "Alt", "Üst"]
                         print(df.head(5)[display_columns].to_string(index=False))
                         print(f"\n📊 Toplam sütun sayısı: {len(df.columns)}")
                         print(f"🏷️ Sütunlar: {', '.join(df.columns.tolist())}")
@@ -552,6 +624,41 @@ class NesineScraper:
             return False
         except Exception as e:
             print(f"❌ Rekabet geçmişi CSV kaydetme hatası: {e}")
+            return False
+
+    def save_last_matches_to_csv(self):
+        if not self.last_matches_data:
+            print("❌ Kaydedilecek son maçlar verisi yok!")
+            return False
+        try:
+            seen = set()
+            unique_last_matches = []
+            for row in self.last_matches_data:
+                key = (row['Tarih'], row['Ev_Sahibi'], row['Deplasman'], row['MS'])
+                if key not in seen:
+                    unique_last_matches.append(row)
+                    seen.add(key)
+            df = pd.DataFrame(unique_last_matches)
+            csv_paths = [
+                "Son_maclar.csv",
+                os.path.join(os.path.expanduser("~"), "Desktop", "Son_maclar.csv"),
+                os.path.join(os.getcwd(), "Son_maclar.csv")
+            ]
+            for csv_path in csv_paths:
+                try:
+                    df.to_csv(csv_path, index=False, encoding='utf-8-sig')
+                    if os.path.exists(csv_path) and os.path.getsize(csv_path) > 0:
+                        print(f"✅ {len(df)} son maç verisi '{csv_path}' dosyasına kaydedildi")
+                        print(f"📋 İlk 5 maç (özet):")
+                        display_columns = ['Ana_Maç', 'Takım', 'Son_Lig', 'Tarih', 'Ev_Sahibi', 'Deplasman', 'MS', 'İY']
+                        print(df.head(5)[display_columns].to_string(index=False))
+                        return True
+                except Exception as e:
+                    continue
+            print("❌ Son maçlar dosyası kaydedilemedi!")
+            return False
+        except Exception as e:
+            print(f"❌ Son maçlar CSV kaydetme hatası: {e}")
             return False
 
     def scrape_matches(self):
@@ -571,6 +678,7 @@ class NesineScraper:
             if extract_stats:
                 print(f"📊 + İSTATİSTİKSEL VERİLER VE PUAN TABLOLARI")
                 print(f"🏆 + REKABET GEÇMİŞİ VE İDDİAA ORANLARI")
+                print(f"📅 + SON MAÇLAR TABLOSU")
             if not self.setup_driver(headless=True):
                 print("❌ ChromeDriver başlatılamadı!")
                 return
@@ -590,6 +698,7 @@ class NesineScraper:
                 self.extract_statistics_data()
                 self.save_league_table_to_csv()
                 self.save_competition_history_to_csv()
+                self.save_last_matches_to_csv()
             if success:
                 print(f"\n🎉 İşlem tamamlandı!")
                 print(f"📊 İstenen: {target_count} | Çekilen: {len(self.matches_data)}")
@@ -598,6 +707,7 @@ class NesineScraper:
                 if extract_stats:
                     print(f"📊 Puan tablosu verileri: {len(self.league_table_data)} satır")
                     print(f"🏆 Rekabet geçmişi verileri: {len(self.competition_history_data)} satır")
+                    print(f"📅 Son maçlar verileri: {len(pd.DataFrame(self.last_matches_data).drop_duplicates(subset=['Tarih','Ev_Sahibi','Deplasman','MS']))} satır")
             else:
                 print("❌ CSV kaydetme başarısız!")
         except Exception as e:
@@ -614,6 +724,7 @@ if __name__ == "__main__":
     print("🔗 + HREF LİNKLERİ + İSTATİSTİKSEL VERİLER")
     print("📋 + GÜNCELLENMİŞ HTML YAPISI İLE PUAN TABLOSU")
     print("🏆 + REKABET GEÇMİŞİ VE İDDİAA ORANLARI")
+    print("📅 + SON MAÇLAR TABLOSU")
     print("=" * 80)
     scraper = NesineScraper()
     scraper.scrape_matches()
