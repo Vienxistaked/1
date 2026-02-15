@@ -268,7 +268,7 @@ class FeatureExtractor:
         cat_feat = extractor.extract_categorical(match)  # Dict[str, str]
     """
 
-    # ── 85 Numeric Feature (ML modeli için sabit sıra) ───────────
+    # ── 96 Numeric Feature (ML modeli için sabit sıra) ───────────
     FEATURE_NAMES: list[str] = [
         # ── Form (6) ──
         "home_form_score", "away_form_score", "form_diff",
@@ -389,7 +389,7 @@ class FeatureExtractor:
     # ─── Public API ───────────────────────────────────────────────
 
     def extract(self, match: Match) -> Dict[str, float]:
-        """Bir maç için tüm 85 sayısal özelliği çıkarır."""
+        """Bir maç için tüm 96 sayısal özelliği çıkarır."""
         f: Dict[str, float] = {}
         ref_dt: datetime = _resolve_match_datetime(match)
 
@@ -1215,7 +1215,7 @@ def build_training_dataset(
     """Sonuçlanmış maçlardan eğitim veri seti oluşturur.
 
     Maçlar kronolojik sıralanır.
-    Returns: (X, y) — X: feature matrisi (n, 85), y: etiketler (0/1/2).
+    Returns: (X, y) — X: feature matrisi (n, 96), y: etiketler (0/1/2).
     """
     extractor = FeatureExtractor(session)
 

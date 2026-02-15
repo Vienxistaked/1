@@ -180,7 +180,7 @@ class StackingEnsemble:
 
         Parameters
         ----------
-        X : np.ndarray  (n_samples, 85)
+        X : np.ndarray  (n_samples, 96)
         y : np.ndarray  (n_samples,) — 0/1/2 labels
         cat_features : CatBoost için kategorik feature listesi
         n_splits : Temporal CV split sayısı
@@ -772,7 +772,7 @@ class SHAPExplainer:
 
         Parameters
         ----------
-        X : (85,) feature vektörü
+        X : (96,) feature vektörü
         prediction_class : 0=MS1, 1=MSX, 2=MS2
         top_n : Döndürülecek en önemli feature sayısı
 
