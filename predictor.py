@@ -76,6 +76,7 @@ from config import (
     MIN_TRAINING_SAMPLES,
     MIN_TRAINING_SAMPLES_XGBOOST,
     MODEL_DIR,
+    RANDOM_SEED,
     VALUE_BET_MIN_EDGE,
     VALUE_BET_MIN_CONFIDENCE,
 )
@@ -285,7 +286,7 @@ class StackingEnsemble:
             max_iter=1000,
             multi_class="multinomial",
             solver="lbfgs",
-            random_state=42,
+            random_state=RANDOM_SEED,
         )
         self.meta_model.fit(X_meta, y_meta)
 
@@ -422,7 +423,7 @@ class StackingEnsemble:
                     "bagging_temperature": trial.suggest_float("bagging_temperature", 0.0, 1.0),
                     "loss_function": "MultiClass",
                     "eval_metric": "MultiClass",
-                    "random_seed": 42,
+                    "random_seed": RANDOM_SEED,
                     "verbose": 0,
                     "early_stopping_rounds": 30,
                     "use_best_model": True,
@@ -462,7 +463,7 @@ class StackingEnsemble:
                     "min_child_samples": trial.suggest_int("min_child_samples", 5, 50),
                     "objective": "multiclass",
                     "num_class": 3,
-                    "random_state": 42,
+                    "random_state": RANDOM_SEED,
                     "verbose": -1,
                     "n_jobs": -1,
                 }
@@ -500,7 +501,7 @@ class StackingEnsemble:
                     "gamma": trial.suggest_float("gamma", 0.0, 5.0),
                     "eval_metric": "mlogloss",
                     "use_label_encoder": False,
-                    "random_state": 42,
+                    "random_state": RANDOM_SEED,
                     "verbosity": 0,
                     "n_jobs": -1,
                 }
@@ -541,7 +542,7 @@ class StackingEnsemble:
                     bagging_temperature=hp.get("bagging_temperature", 0.5),
                     loss_function="MultiClass",
                     eval_metric="Accuracy",
-                    random_seed=42,
+                    random_seed=RANDOM_SEED,
                     verbose=0,
                     early_stopping_rounds=30,
                     use_best_model=True,
@@ -554,7 +555,7 @@ class StackingEnsemble:
                     learning_rate=0.08,
                     loss_function="MultiClass",
                     eval_metric="Accuracy",
-                    random_seed=42,
+                    random_seed=RANDOM_SEED,
                     verbose=0,
                     early_stopping_rounds=30,
                     use_best_model=True,
@@ -582,7 +583,7 @@ class StackingEnsemble:
                     min_child_samples=hp.get("min_child_samples", 20),
                     objective="multiclass",
                     num_class=3,
-                    random_state=42,
+                    random_state=RANDOM_SEED,
                     verbose=-1,
                     n_jobs=-1,
                 )
@@ -597,7 +598,7 @@ class StackingEnsemble:
                     num_leaves=31,
                     objective="multiclass",
                     num_class=3,
-                    random_state=42,
+                    random_state=RANDOM_SEED,
                     verbose=-1,
                     n_jobs=-1,
                 )
@@ -624,7 +625,7 @@ class StackingEnsemble:
                     gamma=hp.get("gamma", 0.0),
                     eval_metric="mlogloss",
                     use_label_encoder=False,
-                    random_state=42,
+                    random_state=RANDOM_SEED,
                     verbosity=0,
                     n_jobs=-1,
                 )
@@ -638,7 +639,7 @@ class StackingEnsemble:
                     colsample_bytree=0.8,
                     eval_metric="mlogloss",
                     use_label_encoder=False,
-                    random_state=42,
+                    random_state=RANDOM_SEED,
                     verbosity=0,
                     n_jobs=-1,
                 )
@@ -658,14 +659,14 @@ class StackingEnsemble:
                 "RandomForest",
                 RandomForestClassifier(
                     n_estimators=200, max_depth=10,
-                    random_state=42, n_jobs=-1,
+                    random_state=RANDOM_SEED, n_jobs=-1,
                 ),
             ))
             self.base_models.append((
                 "GradientBoosting",
                 GradientBoostingClassifier(
                     n_estimators=200, max_depth=6,
-                    learning_rate=0.1, random_state=42,
+                    learning_rate=0.1, random_state=RANDOM_SEED,
                 ),
             ))
             logger.info("⚠ Fallback modeller yüklendi: RandomForest + GradientBoosting")

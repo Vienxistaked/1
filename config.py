@@ -86,6 +86,14 @@ def now_istanbul() -> _dt.datetime:
 # ─── Reproducibility ─────────────────────────────────────────────
 RANDOM_SEED = int(os.getenv("RANDOM_SEED", "42"))
 
+# Global seed enforcement — tüm kütüphanelerde tekrarlanabilirlik
+import random as _random
+import numpy as _np
+
+_random.seed(RANDOM_SEED)
+_np.random.seed(RANDOM_SEED)
+os.environ["PYTHONHASHSEED"] = str(RANDOM_SEED)
+
 # ─── Loglama ──────────────────────────────────────────────────────
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 LOG_FORMAT = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
