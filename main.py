@@ -33,7 +33,7 @@ from sqlalchemy.orm import Session
 from config import (
     LOG_LEVEL, LOG_FORMAT, LOG_DATEFMT,
     MAX_REPORT_MATCHES, VALUE_BET_MIN_CONFIDENCE,
-    BASE_DIR,
+    BASE_DIR, now_istanbul,
 )
 from database import (
     init_db, get_session, db_stats,
@@ -59,7 +59,7 @@ def setup_logging():
         handlers=[
             logging.StreamHandler(sys.stdout),
             logging.FileHandler(
-                BASE_DIR / "logs" / f"nesine_{datetime.now():%Y%m%d}.log",
+                BASE_DIR / "logs" / f"nesine_{now_istanbul():%Y%m%d}.log",
                 encoding='utf-8'
             ),
         ]
@@ -406,7 +406,7 @@ def cmd_analyze(session: Session) -> List[PredictionResult]:
         return []
 
     # ── Başlamış / canlı maçları filtrele ──
-    now = datetime.now()
+    now = now_istanbul()
     upcoming_matches: list[Match] = []
     skipped = 0
     for match in pending_matches:
@@ -714,7 +714,7 @@ def save_results_to_csv(results: List[PredictionResult], filename: str = "Tahmin
 
             for r in results:
                 row = {
-                    "Tarih": datetime.now().strftime("%Y-%m-%d"),
+                    "Tarih": now_istanbul().strftime("%Y-%m-%d"),
                     "Mac": r.match_display,
                     "Lig": "",
                     "Tahmin": f"MS {r.prediction}",

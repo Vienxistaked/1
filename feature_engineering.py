@@ -54,6 +54,8 @@ from config import (
     TYPICAL_SEASON_LENGTH,
     BAYESIAN_PRIOR_MATCHES,
     EARLY_SEASON_THRESHOLD,
+    now_istanbul,
+    TZ_ISTANBUL,
 )
 
 logger = logging.getLogger(__name__)
@@ -96,14 +98,15 @@ def _parse_turkish_date(
         return None
     s: str = str(date_str).strip()
     if ref_year is None:
-        ref_year = datetime.now().year
+        ref_year = now_istanbul().year
 
     # ── Relative dates ("Bugün", "Yarın") ──
     key = s.lower()
     if key in _TR_RELATIVE:
-        return datetime.now().replace(
+        base = now_istanbul().replace(
             hour=0, minute=0, second=0, microsecond=0,
-        ) + timedelta(days=_TR_RELATIVE[key])
+        )
+        return base + timedelta(days=_TR_RELATIVE[key])
 
     # ── Format 1: "dd.mm.yyyy" ──
     m = re.match(r"(\d{1,2})\.(\d{1,2})\.(\d{4})", s)
@@ -146,7 +149,7 @@ def _resolve_match_datetime(match: Match) -> datetime:
         return dt
     if match.created_at is not None:
         return match.created_at
-    return datetime.utcnow()
+    return now_istanbul()
 
 
 def _form_to_points(form_str: Optional[str]) -> float:
