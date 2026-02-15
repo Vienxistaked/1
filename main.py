@@ -141,8 +141,13 @@ def get_match_result_from_user(match_display: str) -> Optional[Tuple[int, int]]:
     while True:
         raw = input("     ➤ Sonuç: ").strip()
 
-        # Pas geç kontrolü
-        if raw.lower() in ("p", "pas", "skip", "geç", "gec", ""):
+        # Boş input → geçersiz, tekrar sor (yanlışlıkla Enter'a basma koruması)
+        if raw == "":
+            print("     ⚠️  Boş giriş. Pas geçmek için 'p' yazın.")
+            continue
+
+        # Pas geç kontrolü (açık intent gerektirir)
+        if raw.lower() in ("p", "pas", "skip", "geç", "gec"):
             print("     ⏭️  Pas geçildi")
             return None
 
@@ -344,10 +349,16 @@ def step_scrape_and_predict(session: Session):
             print("⏭️  Scrape adımı atlandı.")
             print()
             return
-        match_count = int(raw) if raw else 20
-        if match_count < 0:
+        if raw == "":
             match_count = 20
+            print(f"   ℹ️  Varsayılan: {match_count} maç")
+        else:
+            match_count = int(raw)
+            if match_count < 1:
+                print("   ⚠️  Geçersiz sayı, varsayılan 20 kullanılıyor.")
+                match_count = 20
     except ValueError:
+        print("   ⚠️  Geçersiz giriş, varsayılan 20 kullanılıyor.")
         match_count = 20
 
     # 3b. Scraper çalıştır
