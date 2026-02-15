@@ -856,23 +856,26 @@ def main():
 
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         #  TAM ACTIVE LEARNING PIPELINE
+        #  Her adım kendi session'ını kullanır → kısmi hata
+        #  diğer adımların verisini bozmaz.
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+        # ── ADIM 1: Pending Review ──────────────────────────
+        # Doğrulanmamış geçmiş tahminleri kontrol et
+        # Kullanıcıdan maç sonuçlarını al
         with get_session() as session:
-
-            # ── ADIM 1: Pending Review ──────────────────────────
-            # Doğrulanmamış geçmiş tahminleri kontrol et
-            # Kullanıcıdan maç sonuçlarını al
             updated_count = step_pending_review(session)
 
-            # ── ADIM 2: Online Retrain ──────────────────────────
-            # Yeni sonuç girildiyse modeli yeniden eğit
-            if updated_count > 0:
-                print(f"🔄 {updated_count} yeni sonuç girildi — model güncelleniyor...")
-                print()
+        # ── ADIM 2: Online Retrain ──────────────────────────
+        # Yeni sonuç girildiyse modeli yeniden eğit
+        if updated_count > 0:
+            print(f"🔄 {updated_count} yeni sonuç girildi — model güncelleniyor...")
+            print()
+            with get_session() as session:
                 step_retrain(session)
 
-                # Doğruluk istatistiklerini göster
+            # Doğruluk istatistiklerini göster
+            with get_session() as session:
                 predictor = MatchPredictor(session)
                 stats = predictor.validate_past_predictions()
                 if stats['total'] > 0:
@@ -883,12 +886,13 @@ def main():
                             print(f"   • {eng}: {data['accuracy']:.1f}% "
                                   f"({data['correct']}/{data['total']})")
                     print()
-            else:
-                print("ℹ️  Yeni sonuç girilmedi — model mevcut ağırlıklarla devam ediyor.")
-                print()
+        else:
+            print("ℹ️  Yeni sonuç girilmedi — model mevcut ağırlıklarla devam ediyor.")
+            print()
 
-            # ── ADIM 3: Scrape & Predict ────────────────────────
-            # Yeni maçları çek ve güncellenmiş model ile tahmin yap
+        # ── ADIM 3: Scrape & Predict ────────────────────────
+        # Yeni maçları çek ve güncellenmiş model ile tahmin yap
+        with get_session() as session:
             step_scrape_and_predict(session)
 
         print()
