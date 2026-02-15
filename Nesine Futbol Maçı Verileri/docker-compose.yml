@@ -1,0 +1,59 @@
+# ─────────────────────────────────────────────────────────────────
+# 🐳 Nesine Futbol Tahmin Sistemi — Docker Compose
+# Servisler: PostgreSQL (db) + Tahmin Uygulaması (app)
+# ─────────────────────────────────────────────────────────────────
+
+services:
+  # ─── PostgreSQL Veritabanı ────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    container_name: nesine_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: nesine_user
+      POSTGRES_PASSWORD: nesine_secure_pass_2024
+      POSTGRES_DB: nesine_futbol
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nesine_user -d nesine_futbol"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ─── Tahmin Uygulaması ────────────────────────────────────────
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nesine_app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # PostgreSQL bağlantı bilgileri
+      POSTGRES_USER: nesine_user
+      POSTGRES_PASSWORD: nesine_secure_pass_2024
+      POSTGRES_HOST: db
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: nesine_futbol
+      # Chrome headless ayarları
+      CHROME_BIN: /usr/bin/google-chrome-stable
+      DISPLAY: ":99"
+    volumes:
+      # Model cache ve logları persist et
+      - ./models_cache:/app/models_cache
+      - ./logs:/app/logs
+      # CSV çıktıları için
+      - ./output:/app/output
+    stdin_open: true    # Interactive CLI (--review, vb.) için
+    tty: true           # Terminal bağlantısı
+
+volumes:
+  postgres_data:
+    driver: local
