@@ -1,0 +1,56 @@
+# ─── Python ───────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+
+# ─── Virtual Environment ─────────────────────────────────
+.venv/
+venv/
+env/
+ENV/
+
+# ─── IDE / Editor ────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# ─── Database ────────────────────────────────────────────
+*.db
+*.sqlite3
+
+# ─── Logs ────────────────────────────────────────────────
+logs/
+*.log
+
+# ─── Model Artifacts ─────────────────────────────────────
+models_cache/
+*.pkl
+*.pickle
+*.joblib
+
+# ─── Scraped / Generated Data ────────────────────────────
+# CSV'ler scraper çıktısıdır, yerelde oluşturulur
+Bülten.csv
+Puan_Tablosu.csv
+Son_Maclar.csv
+Rekabet_Gecmisi.csv
+Hakem_Bilgileri.csv
+Hakem_Istatistikleri.csv
+Tahmin_Raporu.csv
+Sakat_Cezali.csv
+
+# ─── Environment / Secrets ───────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ─── Docker ──────────────────────────────────────────────
+# docker-compose.override.yml  (lokal override)

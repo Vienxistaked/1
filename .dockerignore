@@ -1,0 +1,16 @@
+# Docker
+__pycache__/
+*.pyc
+*.pyo
+.git
+.gitignore
+*.md
+.vscode/
+.idea/
+*.egg-info/
+dist/
+build/
+.env
+nesine_futbol.db
+logs/
+models_cache/
