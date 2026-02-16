@@ -35,6 +35,8 @@ models_cache/
 *.pkl
 *.pickle
 *.joblib
+catboost_info/
+.pytest_cache/
 
 # ─── Scraped / Generated Data ────────────────────────────
 # CSV'ler scraper çıktısıdır, yerelde oluşturulur
