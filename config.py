@@ -54,7 +54,10 @@ LEAGUE_AVG_GOALS = 2.65         # Lig ortalaması gol beklentisi
 
 # ML Feature Ayarları
 FORM_WINDOW = 5                 # Son N maç formu
-H2H_WINDOW = 10                # H2H son N maç\n\n# Feature sayısı (feature_engineering.FEATURE_NAMES ile senkron tutulmalı)\nN_FEATURES = 96                # v3.1: 85 base + 11 season dampening
+H2H_WINDOW = 10                 # H2H son N maç
+
+# Feature sayısı (feature_engineering.FEATURE_NAMES ile senkron tutulmalı)
+N_FEATURES = 96                 # v3.1: 85 base + 11 season dampening
 
 # Sezon Başı Sönümleme (Bayesian Smoothing) Ayarları
 TYPICAL_SEASON_LENGTH = 34      # Tipik lig sezonu maç sayısı

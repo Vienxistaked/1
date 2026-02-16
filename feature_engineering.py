@@ -112,7 +112,8 @@ def _parse_turkish_date(
     m = re.match(r"(\d{1,2})\.(\d{1,2})\.(\d{4})", s)
     if m:
         try:
-            return datetime(int(m.group(3)), int(m.group(2)), int(m.group(1)))
+            return datetime(int(m.group(3)), int(m.group(2)), int(m.group(1)),
+                            tzinfo=TZ_ISTANBUL)
         except ValueError:
             return None
 
@@ -124,7 +125,8 @@ def _parse_turkish_date(
         month_num: Optional[int] = _TR_MONTHS.get(month_str)
         if month_num is not None:
             try:
-                return datetime(ref_year, month_num, day)
+                return datetime(ref_year, month_num, day,
+                                tzinfo=TZ_ISTANBUL)
             except ValueError:
                 return None
 
