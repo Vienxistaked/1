@@ -33,7 +33,7 @@ from sqlalchemy.orm import Session
 from config import (
     LOG_LEVEL, LOG_FORMAT, LOG_DATEFMT,
     MAX_REPORT_MATCHES, VALUE_BET_MIN_CONFIDENCE,
-    BASE_DIR,
+    BASE_DIR, now_istanbul,
 )
 from database import (
     init_db, get_session, db_stats,
@@ -59,7 +59,7 @@ def setup_logging():
         handlers=[
             logging.StreamHandler(sys.stdout),
             logging.FileHandler(
-                BASE_DIR / "logs" / f"nesine_{datetime.now():%Y%m%d}.log",
+                BASE_DIR / "logs" / f"nesine_{now_istanbul():%Y%m%d}.log",
                 encoding='utf-8'
             ),
         ]
@@ -141,8 +141,13 @@ def get_match_result_from_user(match_display: str) -> Optional[Tuple[int, int]]:
     while True:
         raw = input("     ➤ Sonuç: ").strip()
 
-        # Pas geç kontrolü
-        if raw.lower() in ("p", "pas", "skip", "geç", "gec", ""):
+        # Boş input → geçersiz, tekrar sor (yanlışlıkla Enter'a basma koruması)
+        if raw == "":
+            print("     ⚠️  Boş giriş. Pas geçmek için 'p' yazın.")
+            continue
+
+        # Pas geç kontrolü (açık intent gerektirir)
+        if raw.lower() in ("p", "pas", "skip", "geç", "gec"):
             print("     ⏭️  Pas geçildi")
             return None
 
@@ -344,10 +349,16 @@ def step_scrape_and_predict(session: Session):
             print("⏭️  Scrape adımı atlandı.")
             print()
             return
-        match_count = int(raw) if raw else 20
-        if match_count < 0:
+        if raw == "":
             match_count = 20
+            print(f"   ℹ️  Varsayılan: {match_count} maç")
+        else:
+            match_count = int(raw)
+            if match_count < 1:
+                print("   ⚠️  Geçersiz sayı, varsayılan 20 kullanılıyor.")
+                match_count = 20
     except ValueError:
+        print("   ⚠️  Geçersiz giriş, varsayılan 20 kullanılıyor.")
         match_count = 20
 
     # 3b. Scraper çalıştır
@@ -406,7 +417,7 @@ def cmd_analyze(session: Session) -> List[PredictionResult]:
         return []
 
     # ── Başlamış / canlı maçları filtrele ──
-    now = datetime.now()
+    now = now_istanbul()
     upcoming_matches: list[Match] = []
     skipped = 0
     for match in pending_matches:
@@ -714,7 +725,7 @@ def save_results_to_csv(results: List[PredictionResult], filename: str = "Tahmin
 
             for r in results:
                 row = {
-                    "Tarih": datetime.now().strftime("%Y-%m-%d"),
+                    "Tarih": now_istanbul().strftime("%Y-%m-%d"),
                     "Mac": r.match_display,
                     "Lig": "",
                     "Tahmin": f"MS {r.prediction}",
@@ -845,23 +856,26 @@ def main():
 
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         #  TAM ACTIVE LEARNING PIPELINE
+        #  Her adım kendi session'ını kullanır → kısmi hata
+        #  diğer adımların verisini bozmaz.
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+        # ── ADIM 1: Pending Review ──────────────────────────
+        # Doğrulanmamış geçmiş tahminleri kontrol et
+        # Kullanıcıdan maç sonuçlarını al
         with get_session() as session:
-
-            # ── ADIM 1: Pending Review ──────────────────────────
-            # Doğrulanmamış geçmiş tahminleri kontrol et
-            # Kullanıcıdan maç sonuçlarını al
             updated_count = step_pending_review(session)
 
-            # ── ADIM 2: Online Retrain ──────────────────────────
-            # Yeni sonuç girildiyse modeli yeniden eğit
-            if updated_count > 0:
-                print(f"🔄 {updated_count} yeni sonuç girildi — model güncelleniyor...")
-                print()
+        # ── ADIM 2: Online Retrain ──────────────────────────
+        # Yeni sonuç girildiyse modeli yeniden eğit
+        if updated_count > 0:
+            print(f"🔄 {updated_count} yeni sonuç girildi — model güncelleniyor...")
+            print()
+            with get_session() as session:
                 step_retrain(session)
 
-                # Doğruluk istatistiklerini göster
+            # Doğruluk istatistiklerini göster
+            with get_session() as session:
                 predictor = MatchPredictor(session)
                 stats = predictor.validate_past_predictions()
                 if stats['total'] > 0:
@@ -872,12 +886,13 @@ def main():
                             print(f"   • {eng}: {data['accuracy']:.1f}% "
                                   f"({data['correct']}/{data['total']})")
                     print()
-            else:
-                print("ℹ️  Yeni sonuç girilmedi — model mevcut ağırlıklarla devam ediyor.")
-                print()
+        else:
+            print("ℹ️  Yeni sonuç girilmedi — model mevcut ağırlıklarla devam ediyor.")
+            print()
 
-            # ── ADIM 3: Scrape & Predict ────────────────────────
-            # Yeni maçları çek ve güncellenmiş model ile tahmin yap
+        # ── ADIM 3: Scrape & Predict ────────────────────────
+        # Yeni maçları çek ve güncellenmiş model ile tahmin yap
+        with get_session() as session:
             step_scrape_and_predict(session)
 
         print()

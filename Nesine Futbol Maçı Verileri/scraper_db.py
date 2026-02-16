@@ -171,7 +171,7 @@ class ScraperDBWriter:
 
         logger.info("✓ Tüm veriler veritabanına yazıldı")
         for key, count in stats.items():
-            logger.info(f"  {key}: {count} kayıt")
+            logger.info("  %s: %d kayıt", key, count)
 
         return stats
 
@@ -236,11 +236,11 @@ class ScraperDBWriter:
             )
 
             action = "oluşturuldu" if created else "güncellendi"
-            logger.debug(f"  Maç {action}: {md.Maç} ({md.Maç_Kodu})")
+            logger.debug("  Maç %s: %s (%s)", action, md.Maç, md.Maç_Kodu)
             return match.id
 
         except Exception as e:
-            logger.error(f"Maç yazma hatası ({md.Maç_Kodu}): {e}")
+            logger.error("Maç yazma hatası (%s): %s", md.Maç_Kodu, e)
             return None
 
     def _write_standing(self, session: Session, st: TSDataclass,
@@ -273,7 +273,7 @@ class ScraperDBWriter:
             return True
 
         except Exception as e:
-            logger.error(f"Puan tablosu yazma hatası: {e}")
+            logger.error("Puan tablosu yazma hatası: %s", e)
             return False
 
     def _write_recent_match(self, session: Session, lm: LastMatch,
@@ -302,7 +302,7 @@ class ScraperDBWriter:
             return True
 
         except Exception as e:
-            logger.error(f"Son maç yazma hatası: {e}")
+            logger.error("Son maç yazma hatası: %s", e)
             return False
 
     def _write_h2h(self, session: Session, ch: CompetitionHistory,
@@ -336,7 +336,7 @@ class ScraperDBWriter:
             return True
 
         except Exception as e:
-            logger.error(f"H2H yazma hatası: {e}")
+            logger.error("H2H yazma hatası: %s", e)
             return False
 
     def _write_referee_stats(self, session: Session, rs: RSDataclass,
@@ -372,7 +372,7 @@ class ScraperDBWriter:
             return True
 
         except Exception as e:
-            logger.error(f"Hakem istatistik yazma hatası: {e}")
+            logger.error("Hakem istatistik yazma hatası: %s", e)
             return False
 
     def _write_referee_match(self, session: Session, rm: RMDataclass,
@@ -409,7 +409,7 @@ class ScraperDBWriter:
             return True
 
         except Exception as e:
-            logger.error(f"Hakem maç yazma hatası: {e}")
+            logger.error("Hakem maç yazma hatası: %s", e)
             return False
 
     def _write_injury(self, session: Session, inj: InjuryData,
@@ -440,7 +440,7 @@ class ScraperDBWriter:
             return True
 
         except Exception as e:
-            logger.error(f"Sakat/cezalı yazma hatası: {e}")
+            logger.error("Sakat/cezalı yazma hatası: %s", e)
             return False
 
 
@@ -458,7 +458,7 @@ def run_scraper_to_db(match_count: int = 20) -> dict:
     Returns:
         Yazılan kayıt istatistikleri
     """
-    logger.info(f"🕷️ Scraper başlatılıyor ({match_count} maç)...")
+    logger.info("🕷️ Scraper başlatılıyor (%d maç)...", match_count)
 
     scraper = NesineScraper(match_count=match_count)
     scraper.run()

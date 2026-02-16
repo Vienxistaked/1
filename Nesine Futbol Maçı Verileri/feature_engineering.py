@@ -54,6 +54,8 @@ from config import (
     TYPICAL_SEASON_LENGTH,
     BAYESIAN_PRIOR_MATCHES,
     EARLY_SEASON_THRESHOLD,
+    now_istanbul,
+    TZ_ISTANBUL,
 )
 
 logger = logging.getLogger(__name__)
@@ -96,20 +98,22 @@ def _parse_turkish_date(
         return None
     s: str = str(date_str).strip()
     if ref_year is None:
-        ref_year = datetime.now().year
+        ref_year = now_istanbul().year
 
     # ── Relative dates ("Bugün", "Yarın") ──
     key = s.lower()
     if key in _TR_RELATIVE:
-        return datetime.now().replace(
+        base = now_istanbul().replace(
             hour=0, minute=0, second=0, microsecond=0,
-        ) + timedelta(days=_TR_RELATIVE[key])
+        )
+        return base + timedelta(days=_TR_RELATIVE[key])
 
     # ── Format 1: "dd.mm.yyyy" ──
     m = re.match(r"(\d{1,2})\.(\d{1,2})\.(\d{4})", s)
     if m:
         try:
-            return datetime(int(m.group(3)), int(m.group(2)), int(m.group(1)))
+            return datetime(int(m.group(3)), int(m.group(2)), int(m.group(1)),
+                            tzinfo=TZ_ISTANBUL)
         except ValueError:
             return None
 
@@ -121,7 +125,8 @@ def _parse_turkish_date(
         month_num: Optional[int] = _TR_MONTHS.get(month_str)
         if month_num is not None:
             try:
-                return datetime(ref_year, month_num, day)
+                return datetime(ref_year, month_num, day,
+                                tzinfo=TZ_ISTANBUL)
             except ValueError:
                 return None
 
@@ -146,7 +151,7 @@ def _resolve_match_datetime(match: Match) -> datetime:
         return dt
     if match.created_at is not None:
         return match.created_at
-    return datetime.utcnow()
+    return now_istanbul()
 
 
 def _form_to_points(form_str: Optional[str]) -> float:
@@ -265,7 +270,7 @@ class FeatureExtractor:
         cat_feat = extractor.extract_categorical(match)  # Dict[str, str]
     """
 
-    # ── 85 Numeric Feature (ML modeli için sabit sıra) ───────────
+    # ── 96 Numeric Feature (ML modeli için sabit sıra) ───────────
     FEATURE_NAMES: list[str] = [
         # ── Form (6) ──
         "home_form_score", "away_form_score", "form_diff",
@@ -386,7 +391,7 @@ class FeatureExtractor:
     # ─── Public API ───────────────────────────────────────────────
 
     def extract(self, match: Match) -> Dict[str, float]:
-        """Bir maç için tüm 85 sayısal özelliği çıkarır."""
+        """Bir maç için tüm 96 sayısal özelliği çıkarır."""
         f: Dict[str, float] = {}
         ref_dt: datetime = _resolve_match_datetime(match)
 
@@ -1212,7 +1217,7 @@ def build_training_dataset(
     """Sonuçlanmış maçlardan eğitim veri seti oluşturur.
 
     Maçlar kronolojik sıralanır.
-    Returns: (X, y) — X: feature matrisi (n, 85), y: etiketler (0/1/2).
+    Returns: (X, y) — X: feature matrisi (n, 96), y: etiketler (0/1/2).
     """
     extractor = FeatureExtractor(session)
 

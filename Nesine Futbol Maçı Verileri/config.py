@@ -5,6 +5,8 @@ Tüm proje ayarlarını merkezi olarak yönetir.
 
 import os
 from pathlib import Path
+from zoneinfo import ZoneInfo
+import datetime as _dt
 
 # ─── Dizin Ayarları ───────────────────────────────────────────────
 BASE_DIR = Path(os.path.dirname(os.path.abspath(__file__)))
@@ -52,7 +54,10 @@ LEAGUE_AVG_GOALS = 2.65         # Lig ortalaması gol beklentisi
 
 # ML Feature Ayarları
 FORM_WINDOW = 5                 # Son N maç formu
-H2H_WINDOW = 10                # H2H son N maç
+H2H_WINDOW = 10                 # H2H son N maç
+
+# Feature sayısı (feature_engineering.FEATURE_NAMES ile senkron tutulmalı)
+N_FEATURES = 96                 # v3.1: 85 base + 11 season dampening
 
 # Sezon Başı Sönümleme (Bayesian Smoothing) Ayarları
 TYPICAL_SEASON_LENGTH = 34      # Tipik lig sezonu maç sayısı
@@ -74,7 +79,25 @@ FALLBACK_WEIGHTS = {
     'eksik': 0.15,
 }
 
+# ─── Timezone ─────────────────────────────────────────────────────
+TZ_ISTANBUL = ZoneInfo("Europe/Istanbul")
+
+def now_istanbul() -> _dt.datetime:
+    """Timezone-aware şu anki Istanbul saatini döndürür."""
+    return _dt.datetime.now(tz=TZ_ISTANBUL)
+
+# ─── Reproducibility ─────────────────────────────────────────────
+RANDOM_SEED = int(os.getenv("RANDOM_SEED", "42"))
+
+# Global seed enforcement — tüm kütüphanelerde tekrarlanabilirlik
+import random as _random
+import numpy as _np
+
+_random.seed(RANDOM_SEED)
+_np.random.seed(RANDOM_SEED)
+os.environ["PYTHONHASHSEED"] = str(RANDOM_SEED)
+
 # ─── Loglama ──────────────────────────────────────────────────────
-LOG_LEVEL = "INFO"
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 LOG_FORMAT = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
 LOG_DATEFMT = "%Y-%m-%d %H:%M:%S"

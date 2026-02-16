@@ -52,9 +52,11 @@ v3.0 Değişiklikleri (v2.1 üzerinden):
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import pickle
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
@@ -74,6 +76,7 @@ from config import (
     MIN_TRAINING_SAMPLES,
     MIN_TRAINING_SAMPLES_XGBOOST,
     MODEL_DIR,
+    RANDOM_SEED,
     VALUE_BET_MIN_EDGE,
     VALUE_BET_MIN_CONFIDENCE,
 )
@@ -180,7 +183,7 @@ class StackingEnsemble:
 
         Parameters
         ----------
-        X : np.ndarray  (n_samples, 85)
+        X : np.ndarray  (n_samples, 96)
         y : np.ndarray  (n_samples,) — 0/1/2 labels
         cat_features : CatBoost için kategorik feature listesi
         n_splits : Temporal CV split sayısı
@@ -283,7 +286,7 @@ class StackingEnsemble:
             max_iter=1000,
             multi_class="multinomial",
             solver="lbfgs",
-            random_state=42,
+            random_state=RANDOM_SEED,
         )
         self.meta_model.fit(X_meta, y_meta)
 
@@ -420,7 +423,7 @@ class StackingEnsemble:
                     "bagging_temperature": trial.suggest_float("bagging_temperature", 0.0, 1.0),
                     "loss_function": "MultiClass",
                     "eval_metric": "MultiClass",
-                    "random_seed": 42,
+                    "random_seed": RANDOM_SEED,
                     "verbose": 0,
                     "early_stopping_rounds": 30,
                     "use_best_model": True,
@@ -460,7 +463,7 @@ class StackingEnsemble:
                     "min_child_samples": trial.suggest_int("min_child_samples", 5, 50),
                     "objective": "multiclass",
                     "num_class": 3,
-                    "random_state": 42,
+                    "random_state": RANDOM_SEED,
                     "verbose": -1,
                     "n_jobs": -1,
                 }
@@ -498,7 +501,7 @@ class StackingEnsemble:
                     "gamma": trial.suggest_float("gamma", 0.0, 5.0),
                     "eval_metric": "mlogloss",
                     "use_label_encoder": False,
-                    "random_state": 42,
+                    "random_state": RANDOM_SEED,
                     "verbosity": 0,
                     "n_jobs": -1,
                 }
@@ -539,7 +542,7 @@ class StackingEnsemble:
                     bagging_temperature=hp.get("bagging_temperature", 0.5),
                     loss_function="MultiClass",
                     eval_metric="Accuracy",
-                    random_seed=42,
+                    random_seed=RANDOM_SEED,
                     verbose=0,
                     early_stopping_rounds=30,
                     use_best_model=True,
@@ -552,7 +555,7 @@ class StackingEnsemble:
                     learning_rate=0.08,
                     loss_function="MultiClass",
                     eval_metric="Accuracy",
-                    random_seed=42,
+                    random_seed=RANDOM_SEED,
                     verbose=0,
                     early_stopping_rounds=30,
                     use_best_model=True,
@@ -580,7 +583,7 @@ class StackingEnsemble:
                     min_child_samples=hp.get("min_child_samples", 20),
                     objective="multiclass",
                     num_class=3,
-                    random_state=42,
+                    random_state=RANDOM_SEED,
                     verbose=-1,
                     n_jobs=-1,
                 )
@@ -595,7 +598,7 @@ class StackingEnsemble:
                     num_leaves=31,
                     objective="multiclass",
                     num_class=3,
-                    random_state=42,
+                    random_state=RANDOM_SEED,
                     verbose=-1,
                     n_jobs=-1,
                 )
@@ -622,7 +625,7 @@ class StackingEnsemble:
                     gamma=hp.get("gamma", 0.0),
                     eval_metric="mlogloss",
                     use_label_encoder=False,
-                    random_state=42,
+                    random_state=RANDOM_SEED,
                     verbosity=0,
                     n_jobs=-1,
                 )
@@ -636,7 +639,7 @@ class StackingEnsemble:
                     colsample_bytree=0.8,
                     eval_metric="mlogloss",
                     use_label_encoder=False,
-                    random_state=42,
+                    random_state=RANDOM_SEED,
                     verbosity=0,
                     n_jobs=-1,
                 )
@@ -656,14 +659,14 @@ class StackingEnsemble:
                 "RandomForest",
                 RandomForestClassifier(
                     n_estimators=200, max_depth=10,
-                    random_state=42, n_jobs=-1,
+                    random_state=RANDOM_SEED, n_jobs=-1,
                 ),
             ))
             self.base_models.append((
                 "GradientBoosting",
                 GradientBoostingClassifier(
                     n_estimators=200, max_depth=6,
-                    learning_rate=0.1, random_state=42,
+                    learning_rate=0.1, random_state=RANDOM_SEED,
                 ),
             ))
             logger.info("⚠ Fallback modeller yüklendi: RandomForest + GradientBoosting")
@@ -772,7 +775,7 @@ class SHAPExplainer:
 
         Parameters
         ----------
-        X : (85,) feature vektörü
+        X : (96,) feature vektörü
         prediction_class : 0=MS1, 1=MSX, 2=MS2
         top_n : Döndürülecek en önemli feature sayısı
 
@@ -1026,9 +1029,25 @@ class MatchPredictor:
         return self._train_model(finished)
 
     # ─── Model Kaydetme / Yükleme ────────────────────────────────
+    # GÜVENLİK: pickle dosyası RCE riski taşır. Aşağıdaki önlemler uygulanır:
+    #   1. Yalnızca MODEL_DIR dizininden yükleme (path traversal engeli)
+    #   2. Kaydetme sırasında SHA-256 hash üretilir (.sha256 dosyası)
+    #   3. Yükleme sırasında hash doğrulanır → uyumsuzlukta reddet
+    #   4. Güvenilmeyen ortamda uyarı loglanır
+
+    MODEL_HASH_FILE = MODEL_DIR / "match_predictor.pkl.sha256"
+
+    @staticmethod
+    def _compute_file_hash(filepath: Path) -> str:
+        """Dosyanın SHA-256 hash'ini hesaplar."""
+        sha256 = hashlib.sha256()
+        with open(filepath, "rb") as f:
+            for chunk in iter(lambda: f.read(8192), b""):
+                sha256.update(chunk)
+        return sha256.hexdigest()
 
     def _save_model(self) -> None:
-        """Modeli diske kaydeder."""
+        """Modeli diske kaydeder + SHA-256 hash dosyası oluşturur."""
         if self.stacking is None or not self.stacking.is_fitted:
             return
         try:
@@ -1044,17 +1063,59 @@ class MatchPredictor:
                     },
                     fp,
                 )
-            logger.info("✓ Stacking model kaydedildi: %s", self.MODEL_FILE)
+            # SHA-256 hash kaydet
+            file_hash = self._compute_file_hash(self.MODEL_FILE)
+            self.MODEL_HASH_FILE.write_text(file_hash)
+            logger.info("✓ Stacking model kaydedildi: %s (hash: %s…)", self.MODEL_FILE, file_hash[:12])
         except Exception as e:
             logger.error("Model kaydetme hatası: %s", e)
 
     def _load_model(self) -> bool:
         """Kaydedilmiş modeli yükler.
 
-        v3.0: Versiyon + feature boyutu uyumsuzluğu kontrolü.
+        Güvenlik kontrolleri:
+          1. Dosya yalnızca MODEL_DIR altındaysa kabul edilir
+          2. .sha256 hash dosyası mevcutsa doğrulama yapılır
+          3. Hash uyumsuzluğu → yükleme reddedilir
+          4. v3.0: Versiyon + feature boyutu uyumsuzluğu kontrolü
         """
         if not self.MODEL_FILE.exists():
             return False
+
+        # Güvenlik: Sadece beklenen dizinden yükle (path traversal engeli)
+        try:
+            resolved = self.MODEL_FILE.resolve()
+            allowed_dir = MODEL_DIR.resolve()
+            if not str(resolved).startswith(str(allowed_dir)):
+                logger.error("⛔ Model dosyası güvenli dizin dışında: %s", resolved)
+                return False
+        except Exception:
+            return False
+
+        # Hash doğrulama
+        if self.MODEL_HASH_FILE.exists():
+            expected_hash = self.MODEL_HASH_FILE.read_text().strip()
+            actual_hash = self._compute_file_hash(self.MODEL_FILE)
+            if expected_hash != actual_hash:
+                logger.error(
+                    "⛔ Model dosyası hash doğrulaması BAŞARISIZ!\n"
+                    "  Beklenen: %s\n  Bulunan:  %s\n"
+                    "  Dosya değiştirilmiş olabilir. Model yeniden eğitilecek.",
+                    expected_hash, actual_hash,
+                )
+                self.MODEL_FILE.unlink(missing_ok=True)
+                self.MODEL_HASH_FILE.unlink(missing_ok=True)
+                return False
+            logger.debug("✓ Model hash doğrulandı: %s…", actual_hash[:12])
+        else:
+            logger.warning(
+                "⚠️  Model hash dosyası bulunamadı (%s). "
+                "Model yeniden eğitilecek (güvenlik önlemi).",
+                self.MODEL_HASH_FILE,
+            )
+            self.MODEL_FILE.unlink(missing_ok=True)
+            return False
+
         try:
             with open(self.MODEL_FILE, "rb") as fp:
                 data: dict = pickle.load(fp)  # noqa: S301
@@ -1070,6 +1131,7 @@ class MatchPredictor:
                     saved_n_features, expected_n,
                 )
                 self.MODEL_FILE.unlink()
+                self.MODEL_HASH_FILE.unlink(missing_ok=True)
                 return False
 
             self.stacking = data["stacking"]

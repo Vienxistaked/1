@@ -18,6 +18,7 @@ Tablolar:
 """
 
 from datetime import datetime
+from config import now_istanbul
 from sqlalchemy import (
     Column, Integer, Float, String, Text, DateTime, Boolean,
     ForeignKey, UniqueConstraint, Index, create_engine
@@ -53,7 +54,7 @@ class League(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(200), unique=True, nullable=False, index=True)
     country = Column(String(100))
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=now_istanbul)
 
     # İlişkiler
     matches = relationship("Match", back_populates="league")
@@ -70,7 +71,7 @@ class Team(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(200), unique=True, nullable=False, index=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=now_istanbul)
 
     # İlişkiler
     home_matches = relationship("Match", back_populates="home_team",
@@ -93,7 +94,7 @@ class Referee(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(200), unique=True, nullable=False, index=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=now_istanbul)
 
     # İlişkiler
     matches = relationship("Match", back_populates="referee")
@@ -131,8 +132,8 @@ class Match(Base):
     ht_away_score = Column(Integer, nullable=True)
     is_finished = Column(Boolean, default=False)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=now_istanbul)
+    updated_at = Column(DateTime, default=now_istanbul, onupdate=now_istanbul)
 
     # İlişkiler
     league = relationship("League", back_populates="matches")
@@ -216,7 +217,7 @@ class Odds(Base):
     kg_var = Column(Float)
     kg_yok = Column(Float)
 
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at = Column(DateTime, default=now_istanbul, onupdate=now_istanbul)
 
     match = relationship("Match", back_populates="odds")
 
@@ -491,7 +492,7 @@ class Prediction(Base):
     actual_result = Column(String(5), nullable=True)
     is_correct = Column(Boolean, nullable=True)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=now_istanbul)
 
     match = relationship("Match", back_populates="predictions")
 
